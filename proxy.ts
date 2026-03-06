@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+// The exported function must now be named 'proxy'
+export async function proxy(request: NextRequest) {
   // Create an unmodified response
   let response = NextResponse.next({
     request: {
@@ -43,7 +44,7 @@ export async function middleware(request: NextRequest) {
   return response
 }
 
-// Ensure the middleware is only called for relevant paths.
+// Ensure the proxy is only called for relevant paths.
 export const config = {
   matcher: [
     /*
