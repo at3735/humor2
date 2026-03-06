@@ -1,0 +1,17 @@
+import { createClient } from '@/utils/supabase/server'
+import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+
+  if (code) {
+    const supabase = await createClient()
+    await supabase.auth.exchangeCodeForSession(code)
+  }
+
+  // URL to redirect to after sign in process completes
+  // For now, redirect to the home page. The admin page will handle its own auth.
+  return NextResponse.redirect(requestUrl.origin)
+}
