@@ -19,7 +19,7 @@ function StatCard({ title, value }: { title: string; value: number }) {
 function NavLink({ href, title, description }: { href: string; title: string; description: string }) {
   return (
     <Link href={href}>
-      <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+      <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
         <h3 className="font-bold text-lg text-blue-600">{title}</h3>
         <p className="text-sm text-gray-500">{description}</p>
       </div>
@@ -57,8 +57,7 @@ export default async function Admin() {
     )
   }
 
-  // 2. Fetch statistics using the standard, RLS-enabled client.
-  // This will show counts based on what the logged-in user is allowed to see.
+  // 2. Fetch statistics
   const [
     { count: totalUsers },
     { count: totalImages },
@@ -82,7 +81,6 @@ export default async function Admin() {
         )}
       </header>
 
-      {/* Statistics Section */}
       <section>
         <h2 className="text-xl font-semibold">Overall Statistics</h2>
         <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-3">
@@ -92,13 +90,23 @@ export default async function Admin() {
         </div>
       </section>
 
-      {/* Management Navigation */}
       <section>
         <h2 className="text-xl font-semibold">Management Sections</h2>
-        <div className="grid grid-cols-1 gap-4 mt-4 md:grid-cols-3">
-          <NavLink href="/admin/users" title="1. READ Users/Profiles" description="View a list of all user profiles in the database." />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+          <NavLink href="/admin/users" title="1. READ Users" description="View a list of all user profiles." />
           <NavLink href="/admin/images" title="2. CRUD Images" description="Create, read, update, and delete images." />
-          <NavLink href="/admin/captions" title="3. READ Captions" description="View a list of all captions in the database." />
+          <NavLink href="/admin/captions" title="3. READ Captions" description="View a list of all captions." />
+          <NavLink href="/admin/humor-flavors" title="4. READ Humor Flavors" description="View humor flavors and their steps." />
+          <NavLink href="/admin/humor-mix" title="5. R/U Humor Mix" description="Read and update humor flavor mixes." />
+          <NavLink href="/admin/terms" title="6. CRUD Terms" description="Create, read, update, and delete terms." />
+          <NavLink href="/admin/caption-requests" title="7. READ Caption Requests" description="View caption requests from users." />
+          <NavLink href="/admin/caption-examples" title="8. CRUD Caption Examples" description="Manage caption examples." />
+          <NavLink href="/admin/llm-models" title="9. CRUD LLM Models" description="Manage LLM models." />
+          <NavLink href="/admin/llm-providers" title="10. CRUD LLM Providers" description="Manage LLM providers." />
+          <NavLink href="/admin/llm-prompt-chains" title="11. READ Prompt Chains" description="View LLM prompt chains." />
+          <NavLink href="/admin/llm-model-responses" title="12. READ Model Responses" description="View LLM model responses." />
+          <NavLink href="/admin/allowed-signup-domains" title="13. CRUD Signup Domains" description="Manage allowed signup domains." />
+          <NavLink href="/admin/whitelist-email-addresses" title="14. CRUD Whitelisted Emails" description="Manage whitelisted email addresses." />
         </div>
       </section>
     </div>
