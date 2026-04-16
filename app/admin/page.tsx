@@ -1,17 +1,40 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import type { Database } from '@/types/supabase'
 
 // --- DEVELOPER BACKDOOR ---
 const DEVELOPER_EMAIL = 'at3735@columbia.edu'
 
+// --- TYPE DEFINITIONS ---
+type CaptionWithImage = Database['public']['Tables']['captions']['Row'] & {
+  images: { url: string | null } | null
+}
+
 // --- UI COMPONENTS ---
 
-function StatCard({ title, value }: { title: string; value: number }) {
+function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
     <div className="p-4 bg-gray-100 rounded-lg shadow">
       <h3 className="text-sm font-medium text-gray-500">{title}</h3>
       <p className="mt-1 text-3xl font-semibold text-gray-900">{value}</p>
+    </div>
+  )
+}
+
+function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
+  return (
+    <div className="p-4 bg-white rounded-lg shadow-sm">
+      <h3 className="text-xl font-semibold mb-2">Most Liked Caption</h3>
+      <div className="flex gap-4">
+        {caption.images?.url && (
+          <img src={caption.images.url} alt="Most liked image" className="h-24 w-24 object-cover rounded-md" />
+        )}
+        <div className="flex flex-col">
+          <p className="text-gray-800">"{caption.content}"</p>
+          <p className="mt-auto text-2xl font-bold text-blue-600">{caption.like_count} Likes</p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -32,40 +55,41 @@ function NavLink({ href, title, description }: { href: string; title: string; de
 export default async function Admin() {
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // 1. Authorization checks
   if (!user) return redirect('/')
   const isDeveloper = user.email === DEVELOPER_EMAIL
-  const { data: userProfile } = await supabase
-    .from('profiles')
-    .select('is_superadmin')
-    .eq('id', user.id)
-    .single()
+  const { data: userProfile } = await supabase.from('profiles').select('is_superadmin').eq('id', user.id).single()
   const isSuperAdmin = userProfile?.is_superadmin === true
   if (!isDeveloper && !isSuperAdmin) {
     return (
       <div className="p-4 text-center">
         <h1 className="text-xl font-bold">Access Denied</h1>
         <p>You are not authorized to view this page.</p>
-        <a href="/" className="mt-4 inline-block text-blue-500 hover:underline">
-          Return to Home
-        </a>
+        <a href="/" className="mt-4 inline-block text-blue-500 hover:underline">Return to Home</a>
       </div>
     )
   }
 
   // 2. Fetch statistics
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
   const [
     { count: totalUsers },
     { count: totalImages },
     { count: totalCaptions },
+    { count: ratedLast7Days },
+    { count: ratedLast24Hours },
+    { data: mostLikedCaption },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('images').select('*', { count: 'exact', head: true }),
     supabase.from('captions').select('*', { count: 'exact', head: true }),
+    supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', sevenDaysAgo),
+    supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', twentyFourHoursAgo),
+    supabase.from('captions').select('*, images(url)').order('like_count', { ascending: false }).limit(1).single(),
   ])
 
   // 3. Render the dashboard
@@ -75,19 +99,24 @@ export default async function Admin() {
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-gray-600">Welcome, {user.email}!</p>
         {isDeveloper && !isSuperAdmin && (
-          <p className="mt-2 text-yellow-600 bg-yellow-100 p-2 rounded-md">
-            Note: Accessing via developer backdoor.
-          </p>
+          <p className="mt-2 text-yellow-600 bg-yellow-100 p-2 rounded-md">Note: Accessing via developer backdoor.</p>
         )}
       </header>
 
       <section>
         <h2 className="text-xl font-semibold">Overall Statistics</h2>
-        <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard title="Total Users" value={totalUsers ?? 0} />
           <StatCard title="Total Images" value={totalImages ?? 0} />
           <StatCard title="Total Captions" value={totalCaptions ?? 0} />
+          <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
+          <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
         </div>
+        {mostLikedCaption && (
+          <div className="mt-4">
+            <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
+          </div>
+        )}
       </section>
 
       <section>
