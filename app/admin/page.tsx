@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import type { User } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 
 // --- DEVELOPER BACKDOOR ---
@@ -12,6 +13,48 @@ type CaptionWithImage = Database['public']['Tables']['captions']['Row'] & {
 }
 
 // --- UI COMPONENTS ---
+
+function NavLink({ href, title }: { href: string; title: string }) {
+  return (
+    <Link href={href}>
+      <div className="p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer">
+        <p className="text-sm text-gray-700">{title}</p>
+      </div>
+    </Link>
+  )
+}
+
+function SideMenu({ user }: { user: User }) {
+  const managementLinks = [
+    { href: '/admin/users', title: '1. READ Users' },
+    { href: '/admin/images', title: '2. CRUD Images' },
+    { href: '/admin/captions', title: '3. READ Captions' },
+    { href: '/admin/humor-flavors', title: '4. READ Humor Flavors' },
+    { href: '/admin/humor-mix', title: '5. R/U Humor Mix' },
+    { href: '/admin/terms', title: '6. CRUD Terms' },
+    { href: '/admin/caption-requests', title: '7. READ Caption Requests' },
+    { href: '/admin/caption-examples', title: '8. CRUD Caption Examples' },
+    { href: '/admin/llm-models', title: '9. CRUD LLM Models' },
+    { href: '/admin/llm-providers', title: '10. CRUD LLM Providers' },
+    { href: '/admin/llm-prompt-chains', title: '11. READ Prompt Chains' },
+    { href: '/admin/llm-model-responses', title: '12. READ Model Responses' },
+    { href: '/admin/allowed-signup-domains', title: '13. CRUD Signup Domains' },
+    { href: '/admin/whitelist-email-addresses', title: '14. CRUD Whitelisted Emails' },
+  ]
+
+  return (
+    <aside className="w-64 bg-gray-50 p-4 flex flex-col h-screen border-r fixed top-0 left-0">
+      <nav className="flex-grow space-y-2 overflow-y-auto">
+        {managementLinks.map((link) => (
+          <NavLink key={link.href} href={link.href} title={link.title} />
+        ))}
+      </nav>
+      <div className="p-4 bg-gray-200 rounded-lg text-sm text-black mt-auto">
+        Logged in as: {user.email}
+      </div>
+    </aside>
+  )
+}
 
 function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
@@ -36,17 +79,6 @@ function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function NavLink({ href, title, description }: { href: string; title: string; description: string }) {
-  return (
-    <Link href={href}>
-      <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
-        <h3 className="font-bold text-lg text-blue-600">{title}</h3>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-    </Link>
   )
 }
 
@@ -94,50 +126,29 @@ export default async function Admin() {
 
   // 3. Render the dashboard
   return (
-    <div className="p-4 md:p-8 space-y-10">
-      <header>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-gray-600">Welcome, {user.email}!</p>
-        {isDeveloper && !isSuperAdmin && (
-          <p className="mt-2 text-yellow-600 bg-yellow-100 p-2 rounded-md">Note: Accessing via developer backdoor.</p>
-        )}
-      </header>
-
-      <section>
-        <h2 className="text-xl font-semibold">Overall Statistics</h2>
-        <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard title="Total Users" value={totalUsers ?? 0} />
-          <StatCard title="Total Images" value={totalImages ?? 0} />
-          <StatCard title="Total Captions" value={totalCaptions ?? 0} />
-          <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
-          <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
-        </div>
-        {mostLikedCaption && (
-          <div className="mt-4">
-            <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h2 className="text-xl font-semibold">Management Sections</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-          <NavLink href="/admin/users" title="1. READ Users" description="View a list of all user profiles." />
-          <NavLink href="/admin/images" title="2. CRUD Images" description="Create, read, update, and delete images." />
-          <NavLink href="/admin/captions" title="3. READ Captions" description="View a list of all captions." />
-          <NavLink href="/admin/humor-flavors" title="4. READ Humor Flavors" description="View humor flavors and their steps." />
-          <NavLink href="/admin/humor-mix" title="5. R/U Humor Mix" description="Read and update humor flavor mixes." />
-          <NavLink href="/admin/terms" title="6. CRUD Terms" description="Create, read, update, and delete terms." />
-          <NavLink href="/admin/caption-requests" title="7. READ Caption Requests" description="View caption requests from users." />
-          <NavLink href="/admin/caption-examples" title="8. CRUD Caption Examples" description="Manage caption examples." />
-          <NavLink href="/admin/llm-models" title="9. CRUD LLM Models" description="Manage LLM models." />
-          <NavLink href="/admin/llm-providers" title="10. CRUD LLM Providers" description="Manage LLM providers." />
-          <NavLink href="/admin/llm-prompt-chains" title="11. READ Prompt Chains" description="View LLM prompt chains." />
-          <NavLink href="/admin/llm-model-responses" title="12. READ Model Responses" description="View LLM model responses." />
-          <NavLink href="/admin/allowed-signup-domains" title="13. CRUD Signup Domains" description="Manage allowed signup domains." />
-          <NavLink href="/admin/whitelist-email-addresses" title="14. CRUD Whitelisted Emails" description="Manage whitelisted email addresses." />
-        </div>
-      </section>
+    <div>
+      <SideMenu user={user} />
+      <div className="ml-64">
+        <main className="flex-grow p-8">
+          <h1 className="text-center font-bold text-4xl text-black">Admin Board</h1>
+          <hr className="my-4 -mx-8" />
+          <section>
+            <h2 className="text-xl font-semibold">Overall Statistics</h2>
+            <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-5">
+              <StatCard title="Total Users" value={totalUsers ?? 0} />
+              <StatCard title="Total Images" value={totalImages ?? 0} />
+              <StatCard title="Total Captions" value={totalCaptions ?? 0} />
+              <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
+              <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
+            </div>
+            {mostLikedCaption && (
+              <div className="mt-4">
+                <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
     </div>
   )
 }

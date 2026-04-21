@@ -55,7 +55,7 @@ export default async function AdminHumorFlavorsPage() {
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Manage Humor Flavors</h1>
         <Link href="/admin">
-          <span className="text-blue-500 hover:underline">&larr; Back to Dashboard</span>
+          <span className="px-4 py-2 rounded-md bg-[#d5245f] text-[#eee5e0]">&larr; Back to Dashboard</span>
         </Link>
       </header>
 

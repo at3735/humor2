@@ -9,6 +9,24 @@ const DEVELOPER_EMAIL = 'at3735@columbia.edu'
 // --- TYPE DEFINITIONS ---
 type Profile = Database['public']['Tables']['profiles']['Row']
 
+// --- HELPER FUNCTION ---
+function renderValue(value: any) {
+  if (value === null || value === undefined) {
+    return <span className="text-gray-400">NULL</span>
+  }
+  if (typeof value === 'boolean') {
+    const text = value ? 'True' : 'False'
+    const bgColor = value ? 'bg-green-100' : 'bg-red-100'
+    const textColor = value ? 'text-green-800' : 'text-red-800'
+    return (
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${bgColor} ${textColor}`}>
+        {text}
+      </span>
+    )
+  }
+  return String(value)
+}
+
 // --- PAGE ---
 
 export default async function AdminUsersPage() {
@@ -36,8 +54,7 @@ export default async function AdminUsersPage() {
     )
   }
 
-  // 2. Fetch data using the standard, RLS-enabled client.
-  // This will show only the profiles the logged-in user is allowed to see.
+  // 2. Fetch data
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
@@ -49,7 +66,7 @@ export default async function AdminUsersPage() {
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Manage Users</h1>
         <Link href="/admin">
-          <span className="text-blue-500 hover:underline">&larr; Back to Dashboard</span>
+          <span className="px-4 py-2 rounded-md bg-[#d5245f] text-[#eee5e0]">&larr; Back to Dashboard</span>
         </Link>
       </header>
 
@@ -58,19 +75,21 @@ export default async function AdminUsersPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">First Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Is Superadmin</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {(profiles as Profile[])?.map((p) => (
                 <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{p.first_name} {p.last_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{p.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {p.is_superadmin && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Admin</span>}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{renderValue(p.id)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{renderValue(p.first_name)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{renderValue(p.last_name)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{renderValue(p.email)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{renderValue(p.is_superadmin)}</td>
                 </tr>
               ))}
             </tbody>
