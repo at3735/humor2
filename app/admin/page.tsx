@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import UsersPieChart from './users-pie-chart'
+import StatsTimeGraph from './stats-time-graph'
 
 // --- DEVELOPER BACKDOOR ---
 const DEVELOPER_EMAIL = 'at3735@columbia.edu'
@@ -109,44 +111,69 @@ export default async function Admin() {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [
-    { count: totalUsers },
-    { count: totalImages },
-    { count: totalCaptions },
+    { data: profiles },
+    { data: images },
+    { data: captions },
+    { data: humorFlavors },
+    { count: totalShares },
+    { count: totalSidechatPosts },
+    { count: totalTerms },
     { count: ratedLast7Days },
     { count: ratedLast24Hours },
     { data: mostLikedCaption },
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('images').select('*', { count: 'exact', head: true }),
-    supabase.from('captions').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('email'),
+    supabase.from('images').select('created_datetime_utc'),
+    supabase.from('captions').select('created_datetime_utc, like_count, images(url), content'),
+    supabase.from('humor_flavors').select('created_datetime_utc'),
+    supabase.from('shares').select('*', { count: 'exact', head: true }),
+    supabase.from('sidechat_posts').select('*', { count: 'exact', head: true }),
+    supabase.from('terms').select('*', { count: 'exact', head: true }),
     supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', sevenDaysAgo),
     supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', twentyFourHoursAgo),
     supabase.from('captions').select('*, images(url)').order('like_count', { ascending: false }).limit(1).single(),
   ])
 
+  const imagesForGraph = (images || []).map(i => ({ date: i.created_datetime_utc, count: 1 }));
+  const captionsForGraph = (captions || []).map(c => ({ date: c.created_datetime_utc, count: 1 }));
+  const humorFlavorsForGraph = (humorFlavors || []).map(h => ({ date: h.created_datetime_utc, count: 1 }));
+
   // 3. Render the dashboard
   return (
     <div>
       <SideMenu user={user} />
-      <div className="ml-64">
+      <div className="ml-64 flex flex-col min-h-screen">
         <main className="flex-grow p-8">
           <h1 className="text-center font-bold text-4xl text-black">Admin Board</h1>
           <hr className="my-4 -mx-8" />
-          <section>
-            <h2 className="text-xl font-semibold">Overall Statistics</h2>
-            <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-5">
-              <StatCard title="Total Users" value={totalUsers ?? 0} />
-              <StatCard title="Total Images" value={totalImages ?? 0} />
-              <StatCard title="Total Captions" value={totalCaptions ?? 0} />
-              <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
-              <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
-            </div>
-            {mostLikedCaption && (
-              <div className="mt-4">
-                <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
+
+          <div className="flex-grow p-6 rounded-lg bg-[#989fc0]">
+            <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-white mb-4">Overall Statistics</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <UsersPieChart profiles={profiles || []} />
+                <StatsTimeGraph data={imagesForGraph} title="Total Images Over Time" lineColor="#d5245f" />
+                <StatsTimeGraph data={humorFlavorsForGraph} title="Total Humor Flavors Over Time" lineColor="#d5245f" />
+                <StatCard title="Total Shares" value={totalShares ?? 0} />
+                <StatCard title="Sidechat Posts" value={totalSidechatPosts ?? 0} />
+                <StatCard title="No. of Terms" value={totalTerms ?? 0} />
               </div>
-            )}
-          </section>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-white mb-4">Caption Statistics</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <StatsTimeGraph data={captionsForGraph} title="Total Captions Over Time" lineColor="#d5245f" />
+                <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
+                <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
+                {mostLikedCaption && (
+                  <div className="lg:col-span-1">
+                    <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
         </main>
       </div>
     </div>
