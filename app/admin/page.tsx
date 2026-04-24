@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
-import UsersPieChart from './users-pie-chart'
 import StatsTimeGraph from './stats-time-graph'
 
 // --- DEVELOPER BACKDOOR ---
@@ -61,7 +60,7 @@ function SideMenu({ user }: { user: User }) {
 function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
     <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col justify-center items-center">
-      <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+      <h3 className="text-lg font-medium text-gray-500">{title}</h3>
       <p className="mt-1 text-3xl font-semibold text-gray-900">{value}</p>
     </div>
   )
@@ -70,7 +69,7 @@ function StatCard({ title, value }: { title: string; value: string | number }) {
 function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm h-80 flex flex-col">
-      <h3 className="text-xl font-semibold mb-2">Most Liked Caption</h3>
+      <h3 className="text-2xl font-semibold mb-2">Most Liked Caption</h3>
       <div className="flex-grow flex flex-col justify-center items-center">
         {caption.images?.url && (
           <img src={caption.images.url} alt="Most liked image" className="h-24 w-24 object-cover rounded-md mb-4" />
@@ -83,6 +82,36 @@ function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
     </div>
   )
 }
+
+// --- DATA FETCHING ---
+
+async function fetchAll(supabase: any, tableName: string, columns: string) {
+  const PAGE_SIZE = 1000;
+  let allRows: any[] = [];
+  let lastResult: any[] = [];
+  let page = 0;
+
+  do {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select(columns)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (error) {
+      console.error(`Error fetching from ${tableName}:`, error);
+      break;
+    }
+
+    lastResult = data || [];
+    if (lastResult.length > 0) {
+      allRows = allRows.concat(lastResult);
+    }
+    page++;
+  } while (lastResult.length === PAGE_SIZE);
+
+  return allRows;
+}
+
 
 // --- PAGE ---
 
@@ -106,37 +135,38 @@ export default async function Admin() {
     )
   }
 
-  // 2. Fetch statistics
+  // 2. Fetch all statistics and data for charts
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [
-    { data: profiles, count: totalUsers },
-    { data: images, count: totalImages },
-    { data: captions, count: totalCaptions },
-    { data: humorFlavors, count: totalHumorFlavors },
+    { count: totalUsers },
     { count: totalShares },
     { count: totalSidechatPosts },
     { count: totalTerms },
     { count: ratedLast7Days },
     { count: ratedLast24Hours },
     { data: mostLikedCaption },
+    images,
+    captions,
+    humorFlavors,
   ] = await Promise.all([
-    supabase.from('profiles').select('email', { count: 'exact' }),
-    supabase.from('images').select('created_datetime_utc', { count: 'exact' }),
-    supabase.from('captions').select('created_datetime_utc', { count: 'exact' }),
-    supabase.from('humor_flavors').select('created_datetime_utc', { count: 'exact' }),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('shares').select('*', { count: 'exact', head: true }),
     supabase.from('sidechat_posts').select('*', { count: 'exact', head: true }),
     supabase.from('terms').select('*', { count: 'exact', head: true }),
     supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', sevenDaysAgo),
     supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', twentyFourHoursAgo),
     supabase.from('captions').select('*, images(url)').order('like_count', { ascending: false }).limit(1).single(),
+    fetchAll(supabase, 'images', 'created_datetime_utc'),
+    fetchAll(supabase, 'captions', 'created_datetime_utc'),
+    fetchAll(supabase, 'humor_flavors', 'created_datetime_utc'),
   ])
 
-  const imagesForGraph = (images || []).map(i => ({ date: i.created_datetime_utc, count: 1 }));
-  const captionsForGraph = (captions || []).map(c => ({ date: c.created_datetime_utc, count: 1 }));
-  const humorFlavorsForGraph = (humorFlavors || []).map(h => ({ date: h.created_datetime_utc, count: 1 }));
+  // Prepare data for graphs, ensuring to filter out entries with null dates
+  const imagesForGraph = (images || []).filter(i => i.created_datetime_utc).map(i => ({ date: i.created_datetime_utc, count: 1 }));
+  const captionsForGraph = (captions || []).filter(c => c.created_datetime_utc).map(c => ({ date: c.created_datetime_utc, count: 1 }));
+  const humorFlavorsForGraph = (humorFlavors || []).filter(h => h.created_datetime_utc).map(h => ({ date: h.created_datetime_utc, count: 1 }));
 
   // 3. Render the dashboard
   return (
@@ -151,9 +181,9 @@ export default async function Admin() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-white mb-4">Overall Statistics</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <UsersPieChart profiles={profiles || []} totalCount={totalUsers ?? 0} />
-                <StatsTimeGraph data={imagesForGraph} totalCount={totalImages ?? 0} title="Total Images" lineColor="#d5245f" />
-                <StatsTimeGraph data={humorFlavorsForGraph} totalCount={totalHumorFlavors ?? 0} title="Total Humor Flavors" lineColor="#d5245f" />
+                <StatCard title="Total Users" value={totalUsers ?? 0} />
+                <StatsTimeGraph data={imagesForGraph} totalCount={imagesForGraph.length} title="Total Images" lineColor="#d5245f" />
+                <StatsTimeGraph data={humorFlavorsForGraph} totalCount={humorFlavorsForGraph.length} title="Total Humor Flavors" lineColor="#d5245f" />
                 <StatCard title="Total Shares" value={totalShares ?? 0} />
                 <StatCard title="Sidechat Posts" value={totalSidechatPosts ?? 0} />
                 <StatCard title="No. of Terms" value={totalTerms ?? 0} />
@@ -163,7 +193,7 @@ export default async function Admin() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">Caption Statistics</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <StatsTimeGraph data={captionsForGraph} totalCount={totalCaptions ?? 0} title="Total Captions" lineColor="#d5245f" />
+                <StatsTimeGraph data={captionsForGraph} totalCount={captionsForGraph.length} title="Total Captions" lineColor="#d5245f" />
                 <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
                 <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
                 {mostLikedCaption && (
@@ -174,6 +204,9 @@ export default async function Admin() {
               </div>
             </section>
           </div>
+          <footer className="text-center text-xs text-gray-500 mt-4">
+            Note: Time-series graphs only include records with a valid creation date.
+          </footer>
         </main>
       </div>
     </div>
