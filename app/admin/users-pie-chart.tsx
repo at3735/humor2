@@ -1,9 +1,10 @@
 'use client'
 
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import type { Database } from '@/types/supabase'
 
-type Profile = Database['public']['Tables']['profiles']['Row']
+interface UserProfile {
+  email: string | null
+}
 
 const COLORS = {
   'columbia.edu': '#60A5FA', // blue-400
@@ -11,7 +12,7 @@ const COLORS = {
   'other': '#9CA3AF',      // gray-400
 }
 
-export default function UsersPieChart({ profiles }: { profiles: Profile[] }) {
+export default function UsersPieChart({ profiles, totalCount }: { profiles: UserProfile[], totalCount: number }) {
   const data = [
     { name: 'Columbia', value: 0 },
     { name: 'Barnard', value: 0 },
@@ -31,9 +32,10 @@ export default function UsersPieChart({ profiles }: { profiles: Profile[] }) {
   const chartColors = [COLORS['columbia.edu'], COLORS['barnard.edu'], COLORS['other']];
 
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow h-full flex flex-col">
-      <h3 className="text-sm font-medium text-gray-500">Total Users by School</h3>
-      <div className="flex-grow w-full h-64">
+    <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col min-h-0">
+      <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
+      <p className="mt-1 text-3xl font-semibold text-gray-900">{totalCount}</p>
+      <div className="flex-1 w-full mt-4">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -41,11 +43,10 @@ export default function UsersPieChart({ profiles }: { profiles: Profile[] }) {
               cx="50%"
               cy="50%"
               labelLine={false}
-              outerRadius={80}
+              outerRadius={60}
               fill="#8884d8"
               dataKey="value"
               nameKey="name"
-              label={(entry) => `${entry.name}: ${entry.value}`}
             >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />

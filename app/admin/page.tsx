@@ -60,7 +60,7 @@ function SideMenu({ user }: { user: User }) {
 
 function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow">
+    <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col justify-center items-center">
       <h3 className="text-sm font-medium text-gray-500">{title}</h3>
       <p className="mt-1 text-3xl font-semibold text-gray-900">{value}</p>
     </div>
@@ -69,15 +69,15 @@ function StatCard({ title, value }: { title: string; value: string | number }) {
 
 function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
   return (
-    <div className="p-4 bg-white rounded-lg shadow-sm">
+    <div className="p-4 bg-white rounded-lg shadow-sm h-80 flex flex-col">
       <h3 className="text-xl font-semibold mb-2">Most Liked Caption</h3>
-      <div className="flex gap-4">
+      <div className="flex-grow flex flex-col justify-center items-center">
         {caption.images?.url && (
-          <img src={caption.images.url} alt="Most liked image" className="h-24 w-24 object-cover rounded-md" />
+          <img src={caption.images.url} alt="Most liked image" className="h-24 w-24 object-cover rounded-md mb-4" />
         )}
-        <div className="flex flex-col">
+        <div className="text-center">
           <p className="text-gray-800">"{caption.content}"</p>
-          <p className="mt-auto text-2xl font-bold text-blue-600">{caption.like_count} Likes</p>
+          <p className="mt-2 text-2xl font-bold text-blue-600">{caption.like_count} Likes</p>
         </div>
       </div>
     </div>
@@ -111,10 +111,10 @@ export default async function Admin() {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [
-    { data: profiles },
-    { data: images },
-    { data: captions },
-    { data: humorFlavors },
+    { data: profiles, count: totalUsers },
+    { data: images, count: totalImages },
+    { data: captions, count: totalCaptions },
+    { data: humorFlavors, count: totalHumorFlavors },
     { count: totalShares },
     { count: totalSidechatPosts },
     { count: totalTerms },
@@ -122,10 +122,10 @@ export default async function Admin() {
     { count: ratedLast24Hours },
     { data: mostLikedCaption },
   ] = await Promise.all([
-    supabase.from('profiles').select('email'),
-    supabase.from('images').select('created_datetime_utc'),
-    supabase.from('captions').select('created_datetime_utc, like_count, images(url), content'),
-    supabase.from('humor_flavors').select('created_datetime_utc'),
+    supabase.from('profiles').select('email', { count: 'exact' }),
+    supabase.from('images').select('created_datetime_utc', { count: 'exact' }),
+    supabase.from('captions').select('created_datetime_utc', { count: 'exact' }),
+    supabase.from('humor_flavors').select('created_datetime_utc', { count: 'exact' }),
     supabase.from('shares').select('*', { count: 'exact', head: true }),
     supabase.from('sidechat_posts').select('*', { count: 'exact', head: true }),
     supabase.from('terms').select('*', { count: 'exact', head: true }),
@@ -151,9 +151,9 @@ export default async function Admin() {
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-white mb-4">Overall Statistics</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <UsersPieChart profiles={profiles || []} />
-                <StatsTimeGraph data={imagesForGraph} title="Total Images Over Time" lineColor="#d5245f" />
-                <StatsTimeGraph data={humorFlavorsForGraph} title="Total Humor Flavors Over Time" lineColor="#d5245f" />
+                <UsersPieChart profiles={profiles || []} totalCount={totalUsers ?? 0} />
+                <StatsTimeGraph data={imagesForGraph} totalCount={totalImages ?? 0} title="Total Images" lineColor="#d5245f" />
+                <StatsTimeGraph data={humorFlavorsForGraph} totalCount={totalHumorFlavors ?? 0} title="Total Humor Flavors" lineColor="#d5245f" />
                 <StatCard title="Total Shares" value={totalShares ?? 0} />
                 <StatCard title="Sidechat Posts" value={totalSidechatPosts ?? 0} />
                 <StatCard title="No. of Terms" value={totalTerms ?? 0} />
@@ -163,7 +163,7 @@ export default async function Admin() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">Caption Statistics</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <StatsTimeGraph data={captionsForGraph} title="Total Captions Over Time" lineColor="#d5245f" />
+                <StatsTimeGraph data={captionsForGraph} totalCount={totalCaptions ?? 0} title="Total Captions" lineColor="#d5245f" />
                 <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
                 <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
                 {mostLikedCaption && (
