@@ -35,10 +35,9 @@ export default function ContentOriginPieChart({ captions }: ContentOriginPieChar
   const chartColors = [COLORS.superadmin, COLORS.user];
 
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col min-h-0">
-      <h3 className="text-lg font-medium text-gray-500">Content Origin</h3>
-      <p className="mt-1 text-3xl font-semibold text-gray-900">{captions.length}</p>
-      <div className="flex-1 w-full mt-4">
+    <div className="p-4 bg-gray-100 rounded-lg shadow h-80">
+      <h3 className="text-lg font-medium text-gray-500 mb-4">Content Origin</h3>
+      <div className="w-full" style={{ height: '250px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -46,7 +45,7 @@ export default function ContentOriginPieChart({ captions }: ContentOriginPieChar
               cx="50%"
               cy="50%"
               labelLine={false}
-              outerRadius={80}
+              outerRadius={100}
               fill="#8884d8"
               dataKey="value"
               nameKey="name"

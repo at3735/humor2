@@ -35,10 +35,10 @@ export default function StatsTimeGraph({ data, totalCount, title, lineColor }: T
   });
 
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col min-h-0">
+    <div className="p-4 bg-gray-100 rounded-lg shadow h-80">
       <h3 className="text-lg font-medium text-gray-500">{title}</h3>
       <p className="mt-1 text-3xl font-semibold text-gray-900">{totalCount}</p>
-      <div className="flex-1 w-full mt-4">
+      <div className="w-full mt-4" style={{ height: '200px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={cumulativeChartData}>
             <CartesianGrid strokeDasharray="3 3" />

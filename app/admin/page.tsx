@@ -149,8 +149,7 @@ export default async function Admin() {
     { count: totalCaptions },
     { data: mostLikedCaption },
     images,
-    captionsForGraphData,
-    captionsForOriginData,
+    captions,
     humorFlavors,
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
@@ -160,14 +159,13 @@ export default async function Admin() {
     supabase.from('captions').select('*', { count: 'exact', head: true }),
     supabase.from('captions').select('*, images(url), humor_flavors(slug)').order('like_count', { ascending: false }).limit(1).single(),
     fetchAll(supabase, 'images', 'created_datetime_utc'),
-    fetchAll(supabase, 'captions', 'created_datetime_utc'),
-    fetchAll(supabase, 'captions', 'profile_id, profiles!captions_profile_id_fkey(is_superadmin)'),
+    fetchAll(supabase, 'captions', 'created_datetime_utc, profile_id, profiles!captions_profile_id_fkey(is_superadmin)'),
     fetchAll(supabase, 'humor_flavors', 'created_datetime_utc'),
   ])
 
   // Prepare data for graphs, ensuring to filter out entries with null dates
   const imagesForGraph = (images || []).filter(i => i.created_datetime_utc).map(i => ({ date: i.created_datetime_utc, count: 1 }));
-  const captionsForGraph = (captionsForGraphData || []).filter(c => c.created_datetime_utc).map(c => ({ date: c.created_datetime_utc, count: 1 }));
+  const captionsForGraph = (captions || []).filter(c => c.created_datetime_utc).map(c => ({ date: c.created_datetime_utc, count: 1 }));
   const humorFlavorsForGraph = (humorFlavors || []).filter(h => h.created_datetime_utc).map(h => ({ date: h.created_datetime_utc, count: 1 }));
 
   // 3. Render the dashboard
@@ -189,8 +187,8 @@ export default async function Admin() {
                 <SmallStatCard title="No. of Terms" value={totalTerms ?? 0} />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <StatsTimeGraph data={imagesForGraph} totalCount={imagesForGraph.length} title="Total Images" lineColor="#d5245f" />
-                <StatsTimeGraph data={humorFlavorsForGraph} totalCount={humorFlavorsForGraph.length} title="Total Humor Flavors" lineColor="#d5245f" />
+                <StatsTimeGraph data={imagesForGraph} totalCount={images.length} title="Total Images" lineColor="#d5245f" />
+                <StatsTimeGraph data={humorFlavorsForGraph} totalCount={humorFlavors.length} title="Total Humor Flavors" lineColor="#d5245f" />
               </div>
             </section>
 
@@ -199,7 +197,7 @@ export default async function Admin() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
                 <StatsTimeGraph data={captionsForGraph} totalCount={totalCaptions ?? 0} title="Total Captions" lineColor="#d5245f" />
                 <CaptionsRatedCard />
-                <ContentOriginPieChart captions={captionsForOriginData || []} />
+                <ContentOriginPieChart captions={captions || []} />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {mostLikedCaption && (
@@ -211,7 +209,7 @@ export default async function Admin() {
             </section>
           </div>
           <footer className="text-center text-xs text-gray-500 mt-4">
-            Note: Time-series graphs only include records with a valid creation date.
+            Note: Time-series graphs and pie charts only include records with a valid creation date.
           </footer>
         </main>
       </div>
