@@ -4,13 +4,17 @@ import Link from 'next/link'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import StatsTimeGraph from './stats-time-graph'
+import SmallStatCard from './small-stat-card'
+import CaptionsRatedCard from './captions-rated-card'
+import ContentOriginPieChart from './content-origin-pie-chart'
 
 // --- DEVELOPER BACKDOOR ---
 const DEVELOPER_EMAIL = 'at3735@columbia.edu'
 
 // --- TYPE DEFINITIONS ---
-type CaptionWithImage = Database['public']['Tables']['captions']['Row'] & {
+type CaptionWithDetails = Database['public']['Tables']['captions']['Row'] & {
   images: { url: string | null } | null
+  humor_flavors: { slug: string | null } | null
 }
 
 // --- UI COMPONENTS ---
@@ -57,26 +61,27 @@ function SideMenu({ user }: { user: User }) {
   )
 }
 
-function StatCard({ title, value }: { title: string; value: string | number }) {
+function FeaturedCaptionCard({ caption }: { caption: CaptionWithDetails }) {
   return (
-    <div className="p-4 bg-gray-100 rounded-lg shadow h-80 flex flex-col justify-center items-center">
-      <h3 className="text-lg font-medium text-gray-500">{title}</h3>
-      <p className="mt-1 text-3xl font-semibold text-gray-900">{value}</p>
-    </div>
-  )
-}
-
-function FeaturedCaptionCard({ caption }: { caption: CaptionWithImage }) {
-  return (
-    <div className="p-4 bg-white rounded-lg shadow-sm h-80 flex flex-col">
-      <h3 className="text-2xl font-semibold mb-2">Most Liked Caption</h3>
-      <div className="flex-grow flex flex-col justify-center items-center">
-        {caption.images?.url && (
-          <img src={caption.images.url} alt="Most liked image" className="h-24 w-24 object-cover rounded-md mb-4" />
-        )}
-        <div className="text-center">
-          <p className="text-gray-800">"{caption.content}"</p>
-          <p className="mt-2 text-2xl font-bold text-blue-600">{caption.like_count} Likes</p>
+    <div className="p-6 bg-white rounded-lg shadow-sm">
+      <h3 className="text-2xl font-semibold mb-4">Most Liked Caption</h3>
+      <div className="flex flex-col sm:flex-row gap-6">
+        <div className="sm:w-1/2 flex justify-center items-center">
+          {caption.images?.url && (
+            <img
+              src={caption.images.url}
+              alt="Most liked image"
+              className="rounded-lg object-cover max-h-80"
+            />
+          )}
+        </div>
+        <div className="sm:w-1/2 flex flex-col justify-center">
+          <p className="text-3xl font-bold text-gray-900 mb-6">"{caption.content}"</p>
+          <div className="text-lg text-gray-600 space-y-2">
+            <p><span className="font-semibold">Likes:</span> {caption.like_count}</p>
+            <p><span className="font-semibold">Humor Flavor:</span> {caption.humor_flavors?.slug ?? 'N/A'}</p>
+            <p><span className="font-semibold">Caption ID:</span> {caption.id}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -136,36 +141,33 @@ export default async function Admin() {
   }
 
   // 2. Fetch all statistics and data for charts
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-
   const [
     { count: totalUsers },
     { count: totalShares },
     { count: totalSidechatPosts },
     { count: totalTerms },
-    { count: ratedLast7Days },
-    { count: ratedLast24Hours },
+    { count: totalCaptions },
     { data: mostLikedCaption },
     images,
-    captions,
+    captionsForGraphData,
+    captionsForOriginData,
     humorFlavors,
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('shares').select('*', { count: 'exact', head: true }),
     supabase.from('sidechat_posts').select('*', { count: 'exact', head: true }),
     supabase.from('terms').select('*', { count: 'exact', head: true }),
-    supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', sevenDaysAgo),
-    supabase.from('caption_votes').select('*', { count: 'exact', head: true }).gte('created_datetime_utc', twentyFourHoursAgo),
-    supabase.from('captions').select('*, images(url)').order('like_count', { ascending: false }).limit(1).single(),
+    supabase.from('captions').select('*', { count: 'exact', head: true }),
+    supabase.from('captions').select('*, images(url), humor_flavors(slug)').order('like_count', { ascending: false }).limit(1).single(),
     fetchAll(supabase, 'images', 'created_datetime_utc'),
     fetchAll(supabase, 'captions', 'created_datetime_utc'),
+    fetchAll(supabase, 'captions', 'profile_id, profiles!captions_profile_id_fkey(is_superadmin)'),
     fetchAll(supabase, 'humor_flavors', 'created_datetime_utc'),
   ])
 
   // Prepare data for graphs, ensuring to filter out entries with null dates
   const imagesForGraph = (images || []).filter(i => i.created_datetime_utc).map(i => ({ date: i.created_datetime_utc, count: 1 }));
-  const captionsForGraph = (captions || []).filter(c => c.created_datetime_utc).map(c => ({ date: c.created_datetime_utc, count: 1 }));
+  const captionsForGraph = (captionsForGraphData || []).filter(c => c.created_datetime_utc).map(c => ({ date: c.created_datetime_utc, count: 1 }));
   const humorFlavorsForGraph = (humorFlavors || []).filter(h => h.created_datetime_utc).map(h => ({ date: h.created_datetime_utc, count: 1 }));
 
   // 3. Render the dashboard
@@ -174,31 +176,35 @@ export default async function Admin() {
       <SideMenu user={user} />
       <div className="ml-64 flex flex-col min-h-screen">
         <main className="flex-grow p-8">
-          <h1 className="text-center font-bold text-4xl text-black">Admin Board</h1>
+          <h1 className="text-center font-bold text-5xl text-black dark:text-white">Admin Board</h1>
           <hr className="my-4 -mx-8" />
 
-          <div className="flex-grow p-6 rounded-lg bg-[#989fc0]">
+          <div className="flex-grow p-6 rounded-lg">
             <section className="mb-8">
-              <h2 className="text-2xl font-semibold text-white mb-4">Overall Statistics</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <StatCard title="Total Users" value={totalUsers ?? 0} />
+              <h2 className="text-3xl font-semibold text-black dark:text-white mb-4">Overall Statistics</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-8">
+                <SmallStatCard title="Total Users" value={totalUsers ?? 0} />
+                <SmallStatCard title="Total Shares" value={totalShares ?? 0} />
+                <SmallStatCard title="Sidechat Posts" value={totalSidechatPosts ?? 0} />
+                <SmallStatCard title="No. of Terms" value={totalTerms ?? 0} />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <StatsTimeGraph data={imagesForGraph} totalCount={imagesForGraph.length} title="Total Images" lineColor="#d5245f" />
                 <StatsTimeGraph data={humorFlavorsForGraph} totalCount={humorFlavorsForGraph.length} title="Total Humor Flavors" lineColor="#d5245f" />
-                <StatCard title="Total Shares" value={totalShares ?? 0} />
-                <StatCard title="Sidechat Posts" value={totalSidechatPosts ?? 0} />
-                <StatCard title="No. of Terms" value={totalTerms ?? 0} />
               </div>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">Caption Statistics</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <StatsTimeGraph data={captionsForGraph} totalCount={captionsForGraph.length} title="Total Captions" lineColor="#d5245f" />
-                <StatCard title="Captions Rated (7d)" value={ratedLast7Days ?? 0} />
-                <StatCard title="Captions Rated (24h)" value={ratedLast24Hours ?? 0} />
+              <h2 className="text-3xl font-semibold text-black dark:text-white mb-4">Caption Statistics</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+                <StatsTimeGraph data={captionsForGraph} totalCount={totalCaptions ?? 0} title="Total Captions" lineColor="#d5245f" />
+                <CaptionsRatedCard />
+                <ContentOriginPieChart captions={captionsForOriginData || []} />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 {mostLikedCaption && (
-                  <div className="lg:col-span-1">
-                    <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithImage} />
+                  <div className="sm:col-span-3">
+                    <FeaturedCaptionCard caption={mostLikedCaption as CaptionWithDetails} />
                   </div>
                 )}
               </div>
