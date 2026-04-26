@@ -1,44 +1,12 @@
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import type { Database } from '@/types/supabase'
 
-// --- DEVELOPER BACKDOOR ---
-const DEVELOPER_EMAIL = 'at3735@columbia.edu'
-
-// --- TYPE DEFINITIONS ---
 type HumorFlavorWithSteps = Database['public']['Tables']['humor_flavors']['Row'] & {
   humor_flavor_steps: Database['public']['Tables']['humor_flavor_steps']['Row'][]
 }
 
-// --- PAGE ---
-
 export default async function AdminHumorFlavorsPage() {
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // 1. Authorization checks
-  if (!user) return redirect('/')
-  const isDeveloper = user.email === DEVELOPER_EMAIL
-  const { data: userProfile } = await supabase
-    .from('profiles')
-    .select('is_superadmin')
-    .eq('id', user.id)
-    .single()
-  const isSuperAdmin = userProfile?.is_superadmin === true
-  if (!isDeveloper && !isSuperAdmin) {
-    return (
-      <div className="p-4 text-center">
-        <h1 className="text-xl font-bold">Access Denied</h1>
-        <p>You are not authorized to view this page.</p>
-      </div>
-    )
-  }
-
-  // 2. Fetch data
   const { data: humorFlavors } = await supabase
     .from('humor_flavors')
     .select(`
@@ -49,14 +17,10 @@ export default async function AdminHumorFlavorsPage() {
     `)
     .order('order_by', { referencedTable: 'humor_flavor_steps', ascending: true })
 
-  // 3. Render the page
   return (
-    <div className="p-4 md:p-8">
+    <>
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Manage Humor Flavors</h1>
-        <Link href="/admin">
-          <span className="px-4 py-2 rounded-md bg-[#d5245f] text-[#eee5e0]">&larr; Back to Dashboard</span>
-        </Link>
       </header>
 
       <main className="space-y-8">
@@ -79,7 +43,6 @@ export default async function AdminHumorFlavorsPage() {
                     <tr key={step.id}>
                       <td className="px-4 py-3 align-top text-sm font-bold">{step.order_by}</td>
                       <td className="px-4 py-3 align-top text-sm break-words">{step.description}</td>
-                      {/* Use break-words to allow text to wrap to the next line */}
                       <td className="px-4 py-3 align-top text-sm text-gray-500 break-words" title={step.llm_system_prompt ?? ''}>
                         {step.llm_system_prompt}
                       </td>
@@ -91,6 +54,6 @@ export default async function AdminHumorFlavorsPage() {
           </section>
         ))}
       </main>
-    </div>
+    </>
   )
 }

@@ -1,15 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import type { Database } from '@/types/supabase'
 
-// --- DEVELOPER BACKDOOR ---
-const DEVELOPER_EMAIL = 'at3735@columbia.edu'
-
-// --- TYPE DEFINITIONS ---
 type Profile = Database['public']['Tables']['profiles']['Row']
 
-// --- HELPER FUNCTION ---
 function renderValue(value: any) {
   if (value === null || value === undefined) {
     return <span className="text-gray-400">NULL</span>
@@ -27,47 +20,17 @@ function renderValue(value: any) {
   return String(value)
 }
 
-// --- PAGE ---
-
 export default async function AdminUsersPage() {
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // 1. Authorization checks
-  if (!user) return redirect('/')
-  const isDeveloper = user.email === DEVELOPER_EMAIL
-  const { data: userProfile } = await supabase
-    .from('profiles')
-    .select('is_superadmin')
-    .eq('id', user.id)
-    .single()
-  const isSuperAdmin = userProfile?.is_superadmin === true
-  if (!isDeveloper && !isSuperAdmin) {
-    return (
-      <div className="p-4 text-center">
-        <h1 className="text-xl font-bold">Access Denied</h1>
-        <p>You are not authorized to view this page.</p>
-      </div>
-    )
-  }
-
-  // 2. Fetch data
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
     .order('created_datetime_utc', { ascending: false })
 
-  // 3. Render the page
   return (
-    <div className="p-4 md:p-8">
+    <>
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Manage Users</h1>
-        <Link href="/admin">
-          <span className="px-4 py-2 rounded-md bg-[#d5245f] text-[#eee5e0]">&larr; Back to Dashboard</span>
-        </Link>
       </header>
 
       <main>
@@ -96,6 +59,6 @@ export default async function AdminUsersPage() {
           </table>
         </div>
       </main>
-    </div>
+    </>
   )
 }
