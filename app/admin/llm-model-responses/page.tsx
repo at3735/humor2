@@ -43,7 +43,7 @@ export default async function AdminLlmModelResponsesPage() {
     .from('llm_model_responses')
     .select(`
       *,
-      profiles ( email ),
+      profiles!llm_model_responses_profile_id_fkey ( email ),
       llm_models ( name )
     `)
     .order('created_datetime_utc', { ascending: false })

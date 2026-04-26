@@ -44,7 +44,7 @@ export default async function AdminCaptionRequestsPage() {
     .from('caption_requests')
     .select(`
       *,
-      profiles ( email ),
+      profiles!caption_requests_profile_id_fkey ( email ),
       images ( url )
     `)
     .order('created_datetime_utc', { ascending: false })
